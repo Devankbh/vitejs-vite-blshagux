@@ -1,4 +1,4 @@
-const GEMINI_API_KEY = 'AIzaSyAB9DeDSW7lAiW9RtpnJnDoUdzNOCeBDAI';
+const GEMINI_API_KEY = 'AIzaSyAUQDCKmTegOKF1OqjH6pOGDsHX7OxVhHY';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 export interface ExtractedField {
