@@ -8,6 +8,8 @@ export interface ExtractedField {
   confidence: number;
   status: 'high' | 'medium' | 'low' | 'unmapped';
   page: number;
+  category: string;
+  subcategory: string;
   bbox: { x: number; y: number; w: number; h: number; page: number };
 }
 
