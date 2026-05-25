@@ -1,68 +1,43 @@
 import { useState, useRef, useCallback } from "react";
 import { extractFromFile } from "./api";
 
-// ── PERFIOS OFFICIAL DESIGN SYSTEM ────────────────────────────────────────────
 const P = {
-  // Primary
-  blue:      "#0054B4",
-  blueHover: "#004A9E",
-  blueDark:  "#003D85",
-  blueLight: "#E6EEF8",
-  blueMid:   "#CCDDf0",
-  // Secondary
-  green:     "#2BB673",
-  greenDark: "#1F8A55",
-  greenLight:"#E8F7F1",
-  // Tertiary
-  yellow:    "#F2ED51",
-  turquoise: "#00B4F0",
-  blueGrey:  "#B6CFDD",
-  blueGreyL: "#EEF4F8",
-  // Neutrals
-  white:     "#FFFFFF",
-  gray1:     "#F5F7FA",
-  gray2:     "#EAECF0",
-  gray3:     "#D0D5DD",
-  gray4:     "#98A2B3",
-  gray5:     "#667085",
-  gray6:     "#344054",
-  gray7:     "#1D2939",
-  // Semantic (used sparingly)
-  error:     "#D92D20",
-  errorL:    "#FEF3F2",
-  warning:   "#DC6803",
-  warningL:  "#FFFAEB",
-  navy:      "#0A1929",
+  blue:"#0054B4", blueHover:"#004A9E", blueDark:"#003D85",
+  blueLight:"#E6EEF8", blueMid:"#CCDDeF0",
+  green:"#2BB673", greenDark:"#1F8A55", greenLight:"#E8F7F1",
+  yellow:"#F2ED51", turquoise:"#00B4F0",
+  blueGrey:"#B6CFDD", blueGreyL:"#EEF4F8",
+  white:"#FFFFFF", gray1:"#F5F7FA", gray2:"#EAECF0",
+  gray3:"#D0D5DD", gray4:"#98A2B3", gray5:"#667085",
+  gray6:"#344054", gray7:"#1D2939",
+  error:"#D92D20", errorL:"#FEF3F2",
+  warning:"#DC6803", warningL:"#FFFAEB",
 };
 
-// ── TYPOGRAPHY — Roboto hierarchy ──────────────────────────────────────────────
 const T = {
-  h1: {fontSize:32, fontWeight:700, fontFamily:"Roboto,system-ui,sans-serif"},
-  h2: {fontSize:24, fontWeight:700, fontFamily:"Roboto,system-ui,sans-serif"},
-  h3: {fontSize:18, fontWeight:500, fontFamily:"Roboto,system-ui,sans-serif"},
-  body:{fontSize:15, fontWeight:400, fontFamily:"Roboto,system-ui,sans-serif"},
-  small:{fontSize:13,fontWeight:400, fontFamily:"Roboto,system-ui,sans-serif"},
-  label:{fontSize:11,fontWeight:600, fontFamily:"Roboto,system-ui,sans-serif", letterSpacing:"0.5px"},
+  h1:{fontSize:32,fontWeight:700,fontFamily:"Roboto,system-ui,sans-serif"},
+  h2:{fontSize:24,fontWeight:700,fontFamily:"Roboto,system-ui,sans-serif"},
+  h3:{fontSize:18,fontWeight:500,fontFamily:"Roboto,system-ui,sans-serif"},
+  body:{fontSize:15,fontWeight:400,fontFamily:"Roboto,system-ui,sans-serif"},
+  small:{fontSize:13,fontWeight:400,fontFamily:"Roboto,system-ui,sans-serif"},
+  label:{fontSize:11,fontWeight:600,fontFamily:"Roboto,system-ui,sans-serif",letterSpacing:"0.5px"},
 };
 
-type Confidence = "high"|"medium"|"low"|"unmapped";
-interface Field {
-  id:string; label:string; value:string;
-  confidence:number; status:Confidence;
-  section:string; subsection:string; page:number;
-  corrected?:boolean; isNew?:boolean;
+type Confidence="high"|"medium"|"low"|"unmapped";
+interface Field{
+  id:string;label:string;value:string;confidence:number;status:Confidence;
+  section:string;subsection:string;page:number;corrected?:boolean;isNew?:boolean;
 }
-interface AuditEntry {
-  id:string; timestamp:string; event:string; field:string;
-  originalValue?:string; newValue?:string; method?:string;
+interface AuditEntry{
+  id:string;timestamp:string;event:string;field:string;
+  originalValue?:string;newValue?:string;method?:string;
 }
-interface Ratio {
-  label:string; formula:string; formulaDetail:string;
-  value:string|number; benchmark:string; flag:boolean;
-  unit:string; category:string;
+interface Ratio{
+  label:string;formula:string;formulaDetail:string;
+  value:string|number;benchmark:string;flag:boolean;unit:string;category:string;
 }
 
-const SAMPLE_FIELDS:Field[] = [
+const SAMPLE_FIELDS:Field[]=[
   {id:"cash",  label:"Cash & Equivalents",         value:"4,20,00,000",  confidence:0.97,status:"high",    section:"Balance Sheet",subsection:"Current Assets",          page:1},
   {id:"rec",   label:"Trade Receivables",           value:"2,10,00,000",  confidence:0.71,status:"medium",  section:"Balance Sheet",subsection:"Current Assets",          page:1},
   {id:"inv",   label:"Inventory",                   value:"1,80,00,000",  confidence:0.68,status:"medium",  section:"Balance Sheet",subsection:"Current Assets",          page:1},
@@ -87,7 +62,7 @@ const SAMPLE_FIELDS:Field[] = [
   {id:"fcf",   label:"Cash from Financing",         value:"-90,00,000",   confidence:0.79,status:"medium",  section:"Cash Flow",     subsection:"Financing Activities",   page:3},
 ];
 
-const PDF_PAGES:Record<number,[string,string][]> = {
+const PDF_PAGES:Record<number,[string,string][]>={
   1:[["BALANCE SHEET AS AT 31 MARCH 2025",""],["ASSETS",""],["Current Assets",""],
      ["Cash & Equivalents","4,20,00,000"],["Trade Receivables","2,10,00,000"],
      ["Inventory","1,80,00,000"],["Capital Work in Progress","60,00,000"],
@@ -106,51 +81,52 @@ const PDF_PAGES:Record<number,[string,string][]> = {
      ["Cash from Financing","-90,00,000"]],
 };
 
-const pv = (id:string, f:Field[]) => {
-  const x=f.find(n=>n.id===id); if(!x) return 0;
+const pv=(id:string,f:Field[])=>{
+  const x=f.find(n=>n.id===id);if(!x)return 0;
   const n=parseFloat(x.value.replace(/,/g,"").replace(/-/,""))||0;
   return x.value.startsWith("-")?-n:n;
 };
-const fmt = (n:number) => {
-  if(n===0) return "—";
-  const abs=Math.abs(n), sign=n<0?"(-)":"";
-  if(abs>=10000000) return sign+"₹"+(abs/10000000).toFixed(2)+"Cr";
-  if(abs>=100000)   return sign+"₹"+(abs/100000).toFixed(2)+"L";
+const fmt=(n:number)=>{
+  if(n===0)return "—";
+  const abs=Math.abs(n),sign=n<0?"(-)":"";
+  if(abs>=10000000)return sign+"₹"+(abs/10000000).toFixed(2)+"Cr";
+  if(abs>=100000)  return sign+"₹"+(abs/100000).toFixed(2)+"L";
   return sign+"₹"+abs.toLocaleString("en-IN");
 };
 
-const calcRatios = (f:Field[]):Ratio[] => {
+const calcRatios=(f:Field[]):Ratio[]=>{
   const ca=pv("cash",f)+pv("rec",f)+pv("inv",f)+pv("cwip",f)+pv("dta",f);
   const cl=pv("std",f)+pv("ap",f);
   const td=pv("std",f)+pv("ltd",f);
   const eq=pv("sc",f)+pv("re",f);
   const nca=pv("ppe",f)+pv("intang",f);
   const ta=ca+nca;
-  const rev=pv("rev",f), eb=pv("ebitda",f), pat=pv("pat",f);
-  const int_=pv("int",f), gp=pv("gp",f), wc=ca-cl;
-  const cr=cl?ca/cl:0, de=eq?td/eq:0;
-  const em=rev?(eb/rev)*100:0, npm=rev?(pat/rev)*100:0;
-  const ic=int_?eb/int_:0, roa=ta?(pat/ta)*100:0;
-  const roe=eq?(pat/eq)*100:0, gpm=rev?(gp/rev)*100:0;
-  return [
-    {label:"Current Ratio",      formula:"Current Assets ÷ Current Liabilities",    formulaDetail:`${fmt(ca)} ÷ ${fmt(cl)}`,               value:cr?cr.toFixed(2):"N/A",  benchmark:"> 1.5",  flag:cr>0&&cr<1.5,  unit:"x",  category:"Liquidity"},
-    {label:"Working Capital",    formula:"Current Assets − Current Liabilities",     formulaDetail:`${fmt(ca)} − ${fmt(cl)}`,               value:fmt(wc),                 benchmark:"> 0",    flag:wc<0,          unit:"",   category:"Liquidity"},
-    {label:"Total Current Assets",  formula:"Sum of all current assets",             formulaDetail:`${fmt(ca)}`,                            value:fmt(ca),                 benchmark:"",       flag:false,         unit:"",   category:"Liquidity"},
-    {label:"Total Current Liab.",formula:"Sum of all current liabilities",           formulaDetail:`${fmt(cl)}`,                            value:fmt(cl),                 benchmark:"",       flag:false,         unit:"",   category:"Liquidity"},
-    {label:"Debt to Equity",     formula:"Total Debt ÷ Net Worth",                   formulaDetail:`${fmt(td)} ÷ ${fmt(eq)}`,               value:de?de.toFixed(2):"N/A",  benchmark:"< 2.0",  flag:de>2,          unit:"x",  category:"Leverage"},
-    {label:"Total Debt",         formula:"Short-term Debt + Long-term Debt",         formulaDetail:`${fmt(pv("std",f))} + ${fmt(pv("ltd",f))}`,value:fmt(td),              benchmark:"",       flag:false,         unit:"",   category:"Leverage"},
-    {label:"Net Worth",          formula:"Share Capital + Retained Earnings",        formulaDetail:`${fmt(pv("sc",f))} + ${fmt(pv("re",f))}`,  value:fmt(eq),              benchmark:"",       flag:false,         unit:"",   category:"Leverage"},
-    {label:"Total Assets",       formula:"Current Assets + Non-Current Assets",      formulaDetail:`${fmt(ca)} + ${fmt(nca)}`,               value:fmt(ta),                benchmark:"",       flag:false,         unit:"",   category:"Leverage"},
-    {label:"Gross Profit Margin",formula:"Gross Profit ÷ Revenue × 100",            formulaDetail:`${fmt(gp)} ÷ ${fmt(rev)} × 100`,        value:gpm?gpm.toFixed(1):"N/A",benchmark:"> 20%",  flag:gpm>0&&gpm<20, unit:"%",  category:"Profitability"},
-    {label:"EBITDA Margin",      formula:"EBITDA ÷ Revenue × 100",                  formulaDetail:`${fmt(eb)} ÷ ${fmt(rev)} × 100`,        value:em?em.toFixed(1):"N/A",  benchmark:"> 15%",  flag:em>0&&em<15,   unit:"%",  category:"Profitability"},
-    {label:"Net Profit Margin",  formula:"PAT ÷ Revenue × 100",                     formulaDetail:`${fmt(pat)} ÷ ${fmt(rev)} × 100`,       value:npm?npm.toFixed(1):"N/A",benchmark:"> 5%",   flag:npm>0&&npm<5,  unit:"%",  category:"Profitability"},
-    {label:"Return on Assets",   formula:"PAT ÷ Total Assets × 100",               formulaDetail:`${fmt(pat)} ÷ ${fmt(ta)} × 100`,        value:roa?roa.toFixed(1):"N/A",benchmark:"> 5%",   flag:roa>0&&roa<5,  unit:"%",  category:"Profitability"},
-    {label:"Return on Equity",   formula:"PAT ÷ Net Worth × 100",                  formulaDetail:`${fmt(pat)} ÷ ${fmt(eq)} × 100`,        value:roe?roe.toFixed(1):"N/A",benchmark:"> 12%",  flag:roe>0&&roe<12, unit:"%",  category:"Profitability"},
-    {label:"Revenue",            formula:"As extracted from P&L",                   formulaDetail:`${fmt(rev)}`,                           value:fmt(rev),                benchmark:"",       flag:false,         unit:"",   category:"Key Figures"},
-    {label:"EBITDA",             formula:"As extracted from P&L",                   formulaDetail:`${fmt(eb)}`,                            value:fmt(eb),                 benchmark:"",       flag:false,         unit:"",   category:"Key Figures"},
-    {label:"Profit After Tax",   formula:"As extracted from P&L",                   formulaDetail:`${fmt(pat)}`,                           value:fmt(pat),                benchmark:"",       flag:false,         unit:"",   category:"Key Figures"},
-    {label:"Interest Coverage",  formula:"EBITDA ÷ Interest & Finance Costs",       formulaDetail:`${fmt(eb)} ÷ ${fmt(int_)}`,             value:ic?ic.toFixed(2):"N/A",  benchmark:"> 2x",   flag:ic>0&&ic<2,    unit:"x",  category:"Debt Service"},
-    {label:"Interest Expense",   formula:"As extracted from P&L",                   formulaDetail:`${fmt(int_)}`,                          value:fmt(int_),               benchmark:"",       flag:false,         unit:"",   category:"Debt Service"},
+  const rev=pv("rev",f),eb=pv("ebitda",f),pat=pv("pat",f);
+  const int_=pv("int",f),gp=pv("gp",f),wc=ca-cl;
+  const cr=cl?ca/cl:0,de=eq?td/eq:0;
+  const em=rev?(eb/rev)*100:0,npm_=rev?(pat/rev)*100:0;
+  const ic=int_?eb/int_:0,roa=ta?(pat/ta)*100:0;
+  const roe=eq?(pat/eq)*100:0,gpm=rev?(gp/rev)*100:0;
+  return[
+    {label:"Current Ratio",       formula:"Current Assets ÷ Current Liabilities",  formulaDetail:`${fmt(ca)} ÷ ${fmt(cl)}`,              value:cr?cr.toFixed(2):"N/A",   benchmark:"> 1.5",  flag:cr>0&&cr<1.5,   unit:"x",  category:"Liquidity"},
+    {label:"Working Capital",     formula:"Current Assets − Current Liabilities",   formulaDetail:`${fmt(ca)} − ${fmt(cl)}`,              value:fmt(wc),                  benchmark:"> 0",    flag:wc<0,           unit:"",   category:"Liquidity"},
+    {label:"Total Current Assets",formula:"Sum of all current assets",              formulaDetail:`${fmt(ca)}`,                           value:fmt(ca),                  benchmark:"",       flag:false,          unit:"",   category:"Liquidity"},
+    {label:"Total Current Liab.", formula:"Sum of all current liabilities",         formulaDetail:`${fmt(cl)}`,                           value:fmt(cl),                  benchmark:"",       flag:false,          unit:"",   category:"Liquidity"},
+    {label:"Debt to Equity",      formula:"Total Debt ÷ Net Worth",                 formulaDetail:`${fmt(td)} ÷ ${fmt(eq)}`,              value:de?de.toFixed(2):"N/A",   benchmark:"< 2.0",  flag:de>2,           unit:"x",  category:"Leverage"},
+    {label:"Total Debt",          formula:"Short-term Debt + Long-term Debt",       formulaDetail:`${fmt(pv("std",f))} + ${fmt(pv("ltd",f))}`,value:fmt(td),              benchmark:"",       flag:false,          unit:"",   category:"Leverage"},
+    {label:"Net Worth",           formula:"Share Capital + Retained Earnings",      formulaDetail:`${fmt(pv("sc",f))} + ${fmt(pv("re",f))}`,  value:fmt(eq),              benchmark:"",       flag:false,          unit:"",   category:"Leverage"},
+    {label:"Total Assets",        formula:"Current Assets + Non-Current Assets",    formulaDetail:`${fmt(ca)} + ${fmt(nca)}`,             value:fmt(ta),                  benchmark:"",       flag:false,          unit:"",   category:"Leverage"},
+    {label:"Gross Profit Margin", formula:"Gross Profit ÷ Revenue × 100",          formulaDetail:`${fmt(gp)} ÷ ${fmt(rev)} × 100`,       value:gpm?gpm.toFixed(1):"N/A", benchmark:"> 20%",  flag:gpm>0&&gpm<20,  unit:"%",  category:"Profitability"},
+    {label:"EBITDA Margin",       formula:"EBITDA ÷ Revenue × 100",                formulaDetail:`${fmt(eb)} ÷ ${fmt(rev)} × 100`,       value:em?em.toFixed(1):"N/A",   benchmark:"> 15%",  flag:em>0&&em<15,    unit:"%",  category:"Profitability"},
+    {label:"Net Profit Margin",   formula:"PAT ÷ Revenue × 100",                   formulaDetail:`${fmt(pat)} ÷ ${fmt(rev)} × 100`,      value:npm_?npm_.toFixed(1):"N/A",benchmark:"> 5%",  flag:npm_>0&&npm_<5, unit:"%",  category:"Profitability"},
+    {label:"Return on Assets",    formula:"PAT ÷ Total Assets × 100",              formulaDetail:`${fmt(pat)} ÷ ${fmt(ta)} × 100`,       value:roa?roa.toFixed(1):"N/A", benchmark:"> 5%",   flag:roa>0&&roa<5,   unit:"%",  category:"Profitability"},
+    {label:"Return on Equity",    formula:"PAT ÷ Net Worth × 100",                 formulaDetail:`${fmt(pat)} ÷ ${fmt(eq)} × 100`,       value:roe?roe.toFixed(1):"N/A", benchmark:"> 12%",  flag:roe>0&&roe<12,  unit:"%",  category:"Profitability"},
+    {label:"Interest Coverage",   formula:"EBITDA ÷ Interest & Finance Costs",     formulaDetail:`${fmt(eb)} ÷ ${fmt(int_)}`,            value:ic?ic.toFixed(2):"N/A",   benchmark:"> 2x",   flag:ic>0&&ic<2,     unit:"x",  category:"Debt Service"},
+    {label:"Interest Expense",    formula:"As extracted from P&L",                 formulaDetail:`${fmt(int_)}`,                         value:fmt(int_),                benchmark:"",       flag:false,          unit:"",   category:"Debt Service"},
+    {label:"Revenue",             formula:"As extracted from P&L",                 formulaDetail:`${fmt(rev)}`,                          value:fmt(rev),                 benchmark:"",       flag:false,          unit:"",   category:"Key Figures"},
+    {label:"EBITDA",              formula:"As extracted from P&L",                 formulaDetail:`${fmt(eb)}`,                           value:fmt(eb),                  benchmark:"",       flag:false,          unit:"",   category:"Key Figures"},
+    {label:"Profit After Tax",    formula:"As extracted from P&L",                 formulaDetail:`${fmt(pat)}`,                          value:fmt(pat),                 benchmark:"",       flag:false,          unit:"",   category:"Key Figures"},
+    {label:"Total Assets",        formula:"As computed from Balance Sheet",         formulaDetail:`${fmt(ta)}`,                           value:fmt(ta),                  benchmark:"",       flag:false,          unit:"",   category:"Key Figures"},
   ];
 };
 
@@ -158,10 +134,10 @@ const now=()=>new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-di
 
 const Badge=({status,confidence}:{status:Confidence;confidence:number})=>{
   const m={
-    high:    {bg:P.greenLight,color:P.greenDark,border:"#A7D7BF",text:`✓ ${Math.round(confidence*100)}%`},
-    medium:  {bg:P.warningL,  color:P.warning,  border:"#FDE68A",text:`⚠ ${Math.round(confidence*100)}%`},
-    low:     {bg:P.errorL,    color:P.error,    border:"#FDA29B",text:`✕ ${Math.round(confidence*100)}%`},
-    unmapped:{bg:P.blueGreyL, color:P.gray6,    border:P.blueGrey,text:"UNMAPPED"},
+    high:    {bg:P.greenLight,  color:P.greenDark, border:"#A7D7BF", text:`✓ ${Math.round(confidence*100)}%`},
+    medium:  {bg:P.warningL,    color:P.warning,   border:"#FDE68A", text:`⚠ ${Math.round(confidence*100)}%`},
+    low:     {bg:P.errorL,      color:P.error,     border:"#FDA29B", text:`✕ ${Math.round(confidence*100)}%`},
+    unmapped:{bg:P.blueGreyL,   color:P.gray6,     border:P.blueGrey,text:"UNMAPPED"},
   };
   const s=m[status];
   return <span style={{background:s.bg,color:s.color,border:`1px solid ${s.border}`,...T.label,padding:"2px 7px",borderRadius:4,whiteSpace:"nowrap" as const}}>{s.text}</span>;
@@ -173,7 +149,7 @@ const PDFViewer=({highlight,page,onPage}:{highlight:Field|null;page:number;onPag
       <div style={{background:P.blue,padding:"8px 14px",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
         <span style={{...T.label,color:"rgba(255,255,255,0.7)"}}>DOCUMENT — PAGE</span>
         {[1,2,3].map(p=>(
-          <button key={p} onClick={()=>onPage(p)} style={{padding:"3px 11px",borderRadius:4,border:"none",cursor:"pointer",...T.small,fontWeight:600,background:page===p?"rgba(255,255,255,0.25)":"rgba(255,255,255,0.08)",color:"white",transition:"background 0.15s"}}>
+          <button key={p} onClick={()=>onPage(p)} style={{padding:"3px 11px",borderRadius:4,border:"none",cursor:"pointer",...T.small,fontWeight:600,background:page===p?"rgba(255,255,255,0.25)":"rgba(255,255,255,0.08)",color:P.white}}>
             {p}
           </button>
         ))}
@@ -190,11 +166,11 @@ const PDFViewer=({highlight,page,onPage}:{highlight:Field|null;page:number;onPag
               const isHL=highlight?.label===label&&highlight?.page===page;
               return(
                 <tr key={i} style={{background:isHL?"#FFF9C4":"transparent",transition:"background 0.2s"}}>
-                  <td style={{padding:"5px 8px",fontWeight:isH?700:400,paddingLeft:isH?4:18,...T.body,color:isH?P.blue:P.gray7,borderBottom:isH?"none":`1px solid ${P.gray1}`}}>
+                  <td style={{padding:"5px 8px",paddingLeft:isH?4:18,...T.body,fontWeight:isH?700:400,color:isH?P.blue:P.gray7,borderBottom:isH?"none":`1px solid ${P.gray1}`}}>
                     {isHL&&<span style={{color:P.blue,marginRight:6,fontWeight:700}}>►</span>}
                     {label}
                   </td>
-                  <td style={{padding:"5px 8px",textAlign:"right" as const,fontWeight:isHL?700:400,...T.body,color:isHL?P.blue:P.gray7,fontFamily:"monospace",borderBottom:isH?"none":`1px solid ${P.gray1}`}}>
+                  <td style={{padding:"5px 8px",textAlign:"right" as const,...T.body,fontWeight:isHL?700:400,color:isHL?P.blue:P.gray7,fontFamily:"monospace",borderBottom:isH?"none":`1px solid ${P.gray1}`}}>
                     {value}
                   </td>
                 </tr>
@@ -220,40 +196,41 @@ const ExtractionTable=({fields,selected,filter,onSelect,onEdit,onAddRow}:{
       {sections.map(sec=>{
         const secAll=fields.filter(f=>f.section===sec);
         const secVis=vis.filter(f=>f.section===sec);
-        if(!secVis.length&&filter!=="all") return null;
+        if(!secVis.length&&filter!=="all")return null;
         const subs=[...new Set(secAll.map(f=>f.subsection))];
-        const st={h:secAll.filter(f=>f.status==="high").length,m:secAll.filter(f=>f.status==="medium").length,l:secAll.filter(f=>f.status==="low").length,u:secAll.filter(f=>f.status==="unmapped").length};
+        const st={
+          h:secAll.filter(f=>f.status==="high").length,
+          m:secAll.filter(f=>f.status==="medium").length,
+          l:secAll.filter(f=>f.status==="low").length,
+          u:secAll.filter(f=>f.status==="unmapped").length,
+        };
         return(
           <div key={sec} style={{borderBottom:`2px solid ${P.gray2}`}}>
-            {/* Section header — Perfios Blue */}
             <div style={{background:P.blue,padding:"9px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky" as const,top:0,zIndex:3}}>
               <span style={{...T.h3,color:P.white,fontSize:14}}>{sec}</span>
               <div style={{display:"flex",gap:6}}>
-                {st.h>0&&<span style={{...T.label,color:"#FFFFFF",background:"rgba(43,182,115,0.3)",padding:"1px 7px",borderRadius:3}}>✓ {st.h}</span>}
-                {st.m>0&&<span style={{...T.label,color:"#FFFFFF",background:"rgba(242,237,81,0.3)",padding:"1px 7px",borderRadius:3}}>⚠ {st.m}</span>}
-                {st.l>0&&<span style={{...T.label,color:"#FFFFFF",background:"rgba(217,45,32,0.3)",padding:"1px 7px",borderRadius:3}}>✕ {st.l}</span>}
-                {st.u>0&&<span style={{...T.label,color:"#FFFFFF",background:"rgba(182,207,221,0.4)",padding:"1px 7px",borderRadius:3}}>? {st.u}</span>}
+                {st.h>0&&<span style={{...T.label,color:P.white,background:"rgba(43,182,115,0.3)",padding:"1px 7px",borderRadius:3}}>✓ {st.h}</span>}
+                {st.m>0&&<span style={{...T.label,color:P.white,background:"rgba(220,104,3,0.35)",padding:"1px 7px",borderRadius:3}}>⚠ {st.m}</span>}
+                {st.l>0&&<span style={{...T.label,color:P.white,background:"rgba(217,45,32,0.35)",padding:"1px 7px",borderRadius:3}}>✕ {st.l}</span>}
+                {st.u>0&&<span style={{...T.label,color:P.white,background:"rgba(182,207,221,0.4)",padding:"1px 7px",borderRadius:3}}>? {st.u}</span>}
               </div>
             </div>
             {subs.map(sub=>{
               const subVis=(filter==="all"?fields:vis).filter(f=>f.section===sec&&f.subsection===sub);
-              if(!subVis.length&&filter!=="all") return null;
+              if(!subVis.length&&filter!=="all")return null;
               const subAll=fields.filter(f=>f.section===sec&&f.subsection===sub);
               return(
                 <div key={sub}>
-                  {/* Subsection header — light blue-grey */}
                   <div style={{background:P.blueGreyL,padding:"5px 16px 5px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${P.gray2}`,position:"sticky" as const,top:42,zIndex:2}}>
                     <span style={{...T.label,color:P.blue}}>{sub.toUpperCase()}</span>
                     <span style={{...T.label,color:P.gray4,fontWeight:400}}>{subAll.length} items</span>
                   </div>
-                  {/* Column labels */}
                   <div style={{display:"grid",gridTemplateColumns:"1fr 170px 96px 46px",background:P.gray1,borderBottom:`1px solid ${P.gray2}`,padding:"4px 0"}}>
                     <span style={{...T.label,color:P.gray5,padding:"0 12px 0 24px"}}>FIELD NAME</span>
-                    <span style={{...T.label,color:P.gray5,textAlign:"right" as const,paddingRight:14}}>EXTRACTED VALUE</span>
+                    <span style={{...T.label,color:P.gray5,textAlign:"right" as const,paddingRight:14}}>VALUE</span>
                     <span style={{...T.label,color:P.gray5,textAlign:"center" as const}}>CONFIDENCE</span>
                     <span style={{...T.label,color:P.gray5,textAlign:"center" as const}}>PG</span>
                   </div>
-                  {/* Data rows */}
                   {subVis.map(f=>{
                     const isSel=selected===f.id;
                     const isEd=editId===f.id;
@@ -268,7 +245,7 @@ const ExtractionTable=({fields,selected,filter,onSelect,onEdit,onAddRow}:{
                           {f.corrected&&<span style={{...T.label,color:P.greenDark,background:P.greenLight,padding:"1px 5px",borderRadius:3,marginLeft:7}}>CORRECTED</span>}
                           {f.isNew&&<span style={{...T.label,color:P.blue,background:P.blueLight,padding:"1px 5px",borderRadius:3,marginLeft:7}}>NEW</span>}
                         </div>
-                        <div style={{padding:"8px 14px",textAlign:"right" as const,fontFamily:"monospace",...T.body,color:P.gray7}}>
+                        <div style={{padding:"8px 14px",textAlign:"right" as const,...T.body,fontFamily:"monospace",color:P.gray7}}>
                           {isEd
                             ?<input autoFocus value={editVal}
                                 onChange={e=>setEditVal(e.target.value)}
@@ -303,12 +280,11 @@ const ExtractionTable=({fields,selected,filter,onSelect,onEdit,onAddRow}:{
 
 const RatioSection=({title,ratios,icon}:{title:string;ratios:Ratio[];icon:string})=>{
   const [exp,setExp]=useState<string|null>(null);
-  if(!ratios.length) return null;
+  if(!ratios.length)return null;
   const flags=ratios.filter(r=>r.flag).length;
   const good=ratios.filter(r=>!r.flag&&r.benchmark).length;
   return(
     <div style={{marginBottom:28,borderRadius:8,overflow:"hidden",border:`1px solid ${P.gray2}`,boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
-      {/* Section header */}
       <div style={{background:P.blue,padding:"10px 18px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:18}}>{icon}</span>
@@ -319,7 +295,6 @@ const RatioSection=({title,ratios,icon}:{title:string;ratios:Ratio[];icon:string
           {flags>0&&<span style={{...T.label,color:P.white,background:P.error,padding:"2px 10px",borderRadius:12}}>⚠ {flags} Flag</span>}
         </div>
       </div>
-      {/* Table */}
       <table style={{width:"100%",borderCollapse:"collapse" as const,background:P.white}}>
         <thead>
           <tr style={{background:P.gray1,borderBottom:`2px solid ${P.gray2}`}}>
@@ -335,7 +310,7 @@ const RatioSection=({title,ratios,icon}:{title:string;ratios:Ratio[];icon:string
             <>
               <tr key={r.label}
                 onClick={()=>setExp(exp===r.label?null:r.label)}
-                style={{borderBottom:`1px solid ${P.gray1}`,cursor:r.benchmark?"pointer":"default",background:r.flag?P.errorL:P.white,transition:"background 0.1s"}}
+                style={{borderBottom:`1px solid ${P.gray1}`,cursor:"pointer",background:r.flag?P.errorL:P.white}}
                 onMouseEnter={e=>{(e.currentTarget as HTMLTableRowElement).style.background=r.flag?"#FEE4E2":P.gray1;}}
                 onMouseLeave={e=>{(e.currentTarget as HTMLTableRowElement).style.background=r.flag?P.errorL:P.white;}}>
                 <td style={{padding:"11px 16px",...T.body,color:P.gray7,fontWeight:500}}>
@@ -431,10 +406,13 @@ export default function App(){
     unmapped:fields.filter(f=>f.status==="unmapped").length,
   };
 
-  const handleSelect=(f:Field)=>{setSelected(f);setPdfPage(f.page);addAudit({event:"ITEM VIEWED",field:f.label});};
+  const handleSelect=(f:Field)=>{
+    setSelected(f);setPdfPage(f.page);
+    addAudit({event:"ITEM VIEWED",field:f.label});
+  };
 
   const handleEdit=(f:Field,v:string)=>{
-    if(v===f.value) return;
+    if(v===f.value)return;
     setFields(p=>p.map(x=>x.id===f.id?{...x,value:v,confidence:1,status:"high" as Confidence,corrected:true}:x));
     addAudit({event:"CORRECTION",field:f.label,originalValue:f.value,newValue:v,method:"inline edit"});
   };
@@ -457,14 +435,20 @@ export default function App(){
   };
 
   const handleAddCustomRatio=()=>{
-    if(!crName||!crNum||!crDen) return;
+    if(!crName||!crNum||!crDen)return;
     const nf=fields.find(f=>f.id===crNum),df=fields.find(f=>f.id===crDen);
-    if(!nf||!df) return;
+    if(!nf||!df)return;
     const nv=parseFloat(nf.value.replace(/,/g,""))||0;
     const dv=parseFloat(df.value.replace(/,/g,""))||0;
     const mult=parseFloat(crMult)||1;
     const val=dv?(nv/dv)*mult:0;
-    setCustomRatios(r=>[...r,{label:crName,formula:`${nf.label} ÷ ${df.label}${mult!==1?` × ${mult}`:""}`,formulaDetail:`${fmt(nv)} ÷ ${fmt(dv)}${mult!==1?` × ${mult}`:""}`,value:val.toFixed(2),benchmark:"",flag:false,unit:mult===100?"%":"x",category:"Custom Ratios"}]);
+    setCustomRatios(r=>[...r,{
+      label:crName,
+      formula:`${nf.label} ÷ ${df.label}${mult!==1?` × ${mult}`:""}`,
+      formulaDetail:`${fmt(nv)} ÷ ${fmt(dv)}${mult!==1?` × ${mult}`:""}`,
+      value:val.toFixed(2),benchmark:"",flag:false,
+      unit:mult===100?"%":"x",category:"Custom Ratios",
+    }]);
     addAudit({event:"CUSTOM RATIO CREATED",field:crName});
     setCrName("");setCrNum("");setCrDen("");setCrMult("1");setShowCustom(false);
   };
@@ -472,16 +456,14 @@ export default function App(){
   const allRatios=[...calcRatios(fields),...customRatios];
   const ratioCats=[...new Set(allRatios.map(r=>r.category))];
   const catIcons:Record<string,string>={"Liquidity":"💧","Leverage":"⚖️","Profitability":"📈","Debt Service":"🏦","Key Figures":"📊","Custom Ratios":"⭐"};
-
   const inp={background:P.white,border:`1px solid ${P.gray3}`,borderRadius:6,color:P.gray7,padding:"7px 10px",...T.body,width:"100%",boxSizing:"border-box" as const,outline:"none"};
 
   return(
     <div style={{fontFamily:"Roboto,system-ui,sans-serif",background:P.gray1,minHeight:"100vh",color:P.gray7,display:"flex",flexDirection:"column" as const}}>
 
-      {/* ── TOP NAV ── */}
-      <div style={{background:P.blue,padding:"0 24px",display:"flex",alignItems:"center",gap:0,flexShrink:0,boxShadow:"0 2px 8px rgba(0,84,180,0.3)"}}>
-        {/* Logo area */}
-        <div style={{display:"flex",alignItems:"center",gap:10,paddingRight:32,borderRight:`1px solid rgba(255,255,255,0.2)`,marginRight:0,padding:"12px 32px 12px 0"}}>
+      {/* TOP NAV */}
+      <div style={{background:P.blue,padding:"0 24px",display:"flex",alignItems:"center",flexShrink:0,boxShadow:"0 2px 8px rgba(0,84,180,0.3)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,paddingRight:28,borderRight:`1px solid rgba(255,255,255,0.2)`,padding:"12px 28px 12px 0"}}>
           <div style={{width:32,height:32,background:P.white,borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center"}}>
             <span style={{color:P.blue,fontWeight:900,fontSize:16}}>P</span>
           </div>
@@ -490,99 +472,95 @@ export default function App(){
             <div style={{...T.label,color:"rgba(255,255,255,0.5)",fontWeight:400,fontSize:10}}>AI Financial Spreading</div>
           </div>
         </div>
-        {/* Nav tabs */}
         <div style={{display:"flex",flex:1,paddingLeft:8}}>
           {([{n:1,label:"Extract & Verify",icon:"📄"},{n:2,label:"Analysis & Ratios",icon:"📊"},{n:3,label:"Export",icon:"📤"}] as const).map(({n,label,icon})=>(
-            <button key={n} onClick={()=>setScreen(n)} style={{padding:"14px 20px",border:"none",cursor:"pointer",background:"transparent",color:screen===n?P.white:"rgba(255,255,255,0.55)",fontWeight:screen===n?700:400,...T.body,borderBottom:screen===n?`3px solid ${P.white}`:"3px solid transparent",transition:"all 0.15s",display:"flex",alignItems:"center",gap:6}}>
+            <button key={n} onClick={()=>setScreen(n)} style={{padding:"14px 20px",border:"none",cursor:"pointer",background:"transparent",...T.body,fontWeight:screen===n?700:400,color:screen===n?P.white:"rgba(255,255,255,0.55)",borderBottom:screen===n?`3px solid ${P.white}`:"3px solid transparent",transition:"all 0.15s",display:"flex",alignItems:"center",gap:6}}>
               <span style={{fontSize:14}}>{icon}</span>{label}
             </button>
           ))}
         </div>
-        {/* Stats pills */}
         <div style={{display:"flex",gap:6,paddingLeft:16}}>
-          {[{k:"high",c:P.green,l:"✓"},{k:"medium",c:P.yellow,l:"⚠"},{k:"low",c:P.error,l:"✕"},{k:"unmapped",c:P.blueGrey,l:"?"}].map(({k,c,l})=>
-            stats[k as keyof typeof stats]>0&&(
+          {([{k:"high",c:P.green,l:"✓"},{k:"medium",c:P.yellow,l:"⚠"},{k:"low",c:P.error,l:"✕"},{k:"unmapped",c:P.blueGrey,l:"?"}] as const).map(({k,c,l})=>
+            stats[k]>0?(
               <span key={k} style={{background:"rgba(255,255,255,0.12)",color:P.white,...T.label,padding:"3px 9px",borderRadius:12,borderLeft:`3px solid ${c}`}}>
-                {l} {stats[k as keyof typeof stats]}
+                {l} {stats[k]}
               </span>
-            )
+            ):null
           )}
         </div>
       </div>
 
-      {/* ── SCREEN 1 — EXTRACT & VERIFY ── */}
+      {/* SCREEN 1 — EXTRACT & VERIFY */}
       {screen===1&&(
         <div style={{flex:1,display:"grid",gridTemplateColumns:"1fr 1fr",gridTemplateRows:"auto 1fr",minHeight:0}}>
-          {/* Sub-toolbar */}
           <div style={{gridColumn:"1/-1",background:P.white,borderBottom:`1px solid ${P.gray2}`,padding:"8px 16px",display:"flex",alignItems:"center",gap:8,flexShrink:0,boxShadow:"0 1px 3px rgba(0,0,0,0.05)"}}>
             <span style={{...T.label,color:P.gray5,marginRight:4}}>FILTER:</span>
             {(["all","high","medium","low","unmapped"] as const).map(f=>(
               <button key={f} onClick={()=>setFilter(f)} style={{padding:"4px 12px",borderRadius:20,border:`1px solid ${filter===f?P.blue:P.gray3}`,cursor:"pointer",...T.small,fontWeight:600,background:filter===f?P.blue:P.white,color:filter===f?P.white:P.gray5,transition:"all 0.15s"}}>
-                {f==="all"?"All":f.charAt(0).toUpperCase()+f.slice(1)}{f!=="all"?` (${stats[f as keyof typeof stats]})` :""}
+                {f==="all"?"All Fields":f.charAt(0).toUpperCase()+f.slice(1)}{f!=="all"?` (${stats[f]})` :""}
               </button>
             ))}
             <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:10}}>
-              <span style={{...T.small,color:P.gray4}}>Click to highlight in PDF  ·  Double-click value to edit</span>
-              {uploadError&&<span style={{...T.small,color:P.error}}>{uploadError}</span>}
-              <label style={{cursor:"pointer",background:uploading?P.gray2:P.blue,color:uploading?P.gray4:P.white,...T.small,fontWeight:700,padding:"6px 16px",borderRadius:6,border:"none",transition:"background 0.15s"}}>
+              <span style={{...T.small,color:P.gray4}}>Click row → highlight in PDF  ·  Double-click value to edit</span>
+              {uploadError&&<span style={{...T.small,color:P.error,maxWidth:300}}>{uploadError}</span>}
+              <label style={{cursor:"pointer",background:uploading?P.gray2:P.blue,color:uploading?P.gray4:P.white,...T.small,fontWeight:700,padding:"6px 16px",borderRadius:6,flexShrink:0}}>
                 {uploading?"Processing…":"Upload Document"}
                 <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f)handleUpload(f);}}/>
               </label>
             </div>
           </div>
-          {/* Left — extraction table */}
           <div style={{background:P.white,borderRight:`1px solid ${P.gray2}`,overflow:"hidden",display:"flex",flexDirection:"column" as const,minHeight:0}}>
             <div style={{background:P.blueGreyL,padding:"6px 16px",borderBottom:`1px solid ${P.gray2}`,flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{...T.label,color:P.blue}}>{stats.total} FIELDS EXTRACTED</span>
-              <span style={{...T.label,color:P.gray4,fontWeight:400}}>FY 2024-25 · 3 Documents</span>
+              <span style={{...T.label,color:P.gray4,fontWeight:400}}>FY 2024-25 · Balance Sheet · P&L · Cash Flow</span>
             </div>
             <div style={{flex:1,overflowY:"auto" as const}}>
               <ExtractionTable fields={fields} selected={selected?.id||null} filter={filter} onSelect={handleSelect} onEdit={handleEdit} onAddRow={handleAddRow}/>
             </div>
           </div>
-          {/* Right — PDF viewer */}
           <div style={{overflow:"hidden",display:"flex",flexDirection:"column" as const,minHeight:0}}>
             <PDFViewer highlight={selected} page={pdfPage} onPage={setPdfPage}/>
           </div>
         </div>
       )}
 
-      {/* ── SCREEN 2 — ANALYSIS & RATIOS ── */}
+      {/* SCREEN 2 — ANALYSIS & RATIOS */}
       {screen===2&&(
         <div style={{flex:1,overflowY:"auto" as const,padding:"24px 32px"}}>
           <div style={{maxWidth:1080,margin:"0 auto"}}>
-            {/* Page header */}
             <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
               <div>
-                <h1 style={{...T.h1,color:P.blue,margin:0,marginBottom:6}}>Financial Analysis</h1>
-                <p style={{...T.body,color:P.gray5,margin:0}}>Computed from verified extraction · FY 2024-25 · Click any ratio to expand the full calculation</p>
+                <h1 style={{...T.h1,color:P.blue,margin:"0 0 6px 0"}}>Financial Analysis</h1>
+                <p style={{...T.body,color:P.gray5,margin:0}}>Computed from verified extraction · FY 2024-25 · Click any row to expand the calculation</p>
               </div>
-              <button onClick={()=>setShowCustom(s=>!s)} style={{background:showCustom?P.blueLight:P.blue,border:`1px solid ${P.blue}`,color:showCustom?P.blue:P.white,...T.body,fontWeight:600,padding:"9px 20px",borderRadius:6,cursor:"pointer",display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-                <span>+</span> Custom Ratio
+              <button onClick={()=>setShowCustom(s=>!s)} style={{background:showCustom?P.blueLight:P.blue,border:`1px solid ${P.blue}`,color:showCustom?P.blue:P.white,...T.body,fontWeight:600,padding:"9px 20px",borderRadius:6,cursor:"pointer",flexShrink:0}}>
+                {showCustom?"Cancel":"+ Custom Ratio"}
               </button>
             </div>
 
-            {/* Summary KPI bar */}
+            {/* KPI summary bar */}
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:28}}>
               {[
-                {label:"Total Revenue",    val:fmt(calcRatios(fields).find(r=>r.label==="Revenue")?.value as any||0),   color:P.blue,   bg:P.blueLight},
-                {label:"EBITDA",           val:fmt(calcRatios(fields).find(r=>r.label==="EBITDA")?.value as any||0),    color:P.green,  bg:P.greenLight},
-                {label:"Profit After Tax", val:fmt(calcRatios(fields).find(r=>r.label==="Profit After Tax")?.value as any||0), color:P.greenDark, bg:P.greenLight},
-                {label:"Net Worth",        val:fmt(calcRatios(fields).find(r=>r.label==="Net Worth")?.value as any||0), color:P.blue,   bg:P.blueLight},
+                {label:"Total Revenue",    id:"rev",  color:P.blue},
+                {label:"EBITDA",           id:"ebitda",color:P.green},
+                {label:"Profit After Tax", id:"pat",  color:P.greenDark},
+                {label:"Net Worth",        id:"",     val:fmt(pv("sc",fields)+pv("re",fields)), color:P.blue},
               ].map(c=>(
                 <div key={c.label} style={{background:P.white,border:`1px solid ${P.gray2}`,borderRadius:8,padding:"16px 18px",borderTop:`3px solid ${c.color}`,boxShadow:"0 1px 3px rgba(0,0,0,0.05)"}}>
                   <div style={{...T.label,color:P.gray5,marginBottom:6}}>{c.label.toUpperCase()}</div>
-                  <div style={{...T.h2,color:c.color,fontSize:20}}>{fields.find(f=>f.id===["rev","ebitda","pat","sc"][["Total Revenue","EBITDA","Profit After Tax","Net Worth"].indexOf(c.label)])?.value||"—"}</div>
+                  <div style={{...T.h2,color:c.color,fontSize:18,wordBreak:"break-word" as const}}>
+                    {c.val||(c.id?fields.find(f=>f.id===c.id)?.value:"—")||"—"}
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* Flags alert */}
+            {/* Flag alert */}
             {allRatios.filter(r=>r.flag).length>0&&(
               <div style={{background:P.errorL,border:`1px solid #FDA29B`,borderRadius:8,padding:"12px 18px",marginBottom:24,display:"flex",alignItems:"center",gap:12}}>
                 <span style={{fontSize:20}}>⚠️</span>
                 <div>
-                  <span style={{...T.body,color:P.error,fontWeight:600}}>  {allRatios.filter(r=>r.flag).length} ratio{allRatios.filter(r=>r.flag).length>1?"s":""} below benchmark: </span>
+                  <span style={{...T.body,color:P.error,fontWeight:600}}>{allRatios.filter(r=>r.flag).length} ratio{allRatios.filter(r=>r.flag).length>1?"s":""} below benchmark: </span>
                   <span style={{...T.body,color:P.error}}>{allRatios.filter(r=>r.flag).map(r=>r.label).join(" · ")}</span>
                 </div>
               </div>
@@ -590,36 +568,49 @@ export default function App(){
 
             {/* Custom ratio builder */}
             {showCustom&&(
-              <div style={{background:P.white,border:`1px solid ${P.gray2}`,borderRadius:8,padding:20,marginBottom:28,boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
+              <div style={{background:P.white,border:`1px solid ${P.gray2}`,borderRadius:8,padding:22,marginBottom:28,boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
                 <h3 style={{...T.h3,color:P.blue,margin:"0 0 16px 0"}}>Build a Custom Ratio</h3>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:14}}>
-                  <div><div style={{...T.label,color:P.gray5,marginBottom:5}}>RATIO NAME</div>
-                    <input value={crName} onChange={e=>setCrName(e.target.value)} placeholder="e.g. Net NPA Ratio" style={inp}/></div>
-                  <div><div style={{...T.label,color:P.gray5,marginBottom:5}}>NUMERATOR</div>
+                  <div>
+                    <div style={{...T.label,color:P.gray5,marginBottom:5}}>RATIO NAME</div>
+                    <input value={crName} onChange={e=>setCrName(e.target.value)} placeholder="e.g. Net NPA Ratio" style={inp}/>
+                  </div>
+                  <div>
+                    <div style={{...T.label,color:P.gray5,marginBottom:5}}>NUMERATOR</div>
                     <select value={crNum} onChange={e=>setCrNum(e.target.value)} style={inp}>
                       <option value="">Select field…</option>
                       {fields.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
-                    </select></div>
-                  <div><div style={{...T.label,color:P.gray5,marginBottom:5}}>DENOMINATOR</div>
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{...T.label,color:P.gray5,marginBottom:5}}>DENOMINATOR</div>
                     <select value={crDen} onChange={e=>setCrDen(e.target.value)} style={inp}>
                       <option value="">Select field…</option>
                       {fields.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
-                    </select></div>
-                  <div><div style={{...T.label,color:P.gray5,marginBottom:5}}>MULTIPLY BY</div>
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{...T.label,color:P.gray5,marginBottom:5}}>MULTIPLY BY</div>
                     <select value={crMult} onChange={e=>setCrMult(e.target.value)} style={inp}>
-                      <option value="1">× 1 — ratio / absolute</option>
+                      <option value="1">× 1 — ratio</option>
                       <option value="100">× 100 — percentage (%)</option>
-                    </select></div>
+                    </select>
+                  </div>
                 </div>
-                {crNum&&crDen&&(()=>{const nf=fields.find(f=>f.id===crNum),df=fields.find(f=>f.id===crDen);return nf&&df&&(<div style={{background:P.blueLight,border:`1px solid ${P.blueMid}`,borderRadius:6,padding:"8px 14px",marginBottom:14,...T.body,color:P.blue,fontFamily:"monospace"}}>Preview: <strong>{crName||"New Ratio"}</strong> = {nf.label} ÷ {df.label}{crMult==="100"?" × 100":""}</div>);})()}
+                {crNum&&crDen&&(()=>{
+                  const nf=fields.find(f=>f.id===crNum),df=fields.find(f=>f.id===crDen);
+                  return nf&&df?(<div style={{background:P.blueLight,border:`1px solid ${P.gray3}`,borderRadius:6,padding:"8px 14px",marginBottom:14,...T.body,color:P.blue,fontFamily:"monospace"}}>
+                    Preview: <strong>{crName||"New Ratio"}</strong> = {nf.label} ÷ {df.label}{crMult==="100"?" × 100":""}
+                  </div>):null;
+                })()}
                 <div style={{display:"flex",gap:10}}>
-                  <button onClick={handleAddCustomRatio} style={{background:P.blue,border:"none",color:P.white,...T.body,fontWeight:600,padding:"8px 20px",borderRadius:6,cursor:"pointer"}}>Add Ratio</button>
-                  <button onClick={()=>setShowCustom(false)} style={{background:P.white,border:`1px solid ${P.gray3}`,color:P.gray5,...T.body,padding:"8px 20px",borderRadius:6,cursor:"pointer"}}>Cancel</button>
+                  <button onClick={handleAddCustomRatio} style={{background:P.blue,border:"none",color:P.white,...T.body,fontWeight:600,padding:"8px 22px",borderRadius:6,cursor:"pointer"}}>Add Ratio</button>
+                  <button onClick={()=>setShowCustom(false)} style={{background:P.white,border:`1px solid ${P.gray3}`,color:P.gray5,...T.body,padding:"8px 22px",borderRadius:6,cursor:"pointer"}}>Cancel</button>
                 </div>
               </div>
             )}
 
-            {/* Ratio sections grouped by category */}
+            {/* Ratio sections */}
             {ratioCats.map(cat=>(
               <RatioSection key={cat} title={cat} ratios={allRatios.filter(r=>r.category===cat)} icon={catIcons[cat]||"📊"}/>
             ))}
@@ -627,57 +618,53 @@ export default function App(){
         </div>
       )}
 
-      {/* ── SCREEN 3 — EXPORT ── */}
+      {/* SCREEN 3 — EXPORT */}
       {screen===3&&(
-        <div style={{flex:1,display:"grid",gridTemplateColumns:"1fr 1fr",minHeight:0,gap:0}}>
-          {/* Left — summary + download */}
-          <div style={{padding:28,overflowY:"auto" as const,borderRight:`1px solid ${P.gray2}`}}>
+        <div style={{flex:1,display:"grid",gridTemplateColumns:"1fr 1fr",minHeight:0}}>
+          <div style={{padding:28,overflowY:"auto" as const,borderRight:`1px solid ${P.gray2}`,background:P.white}}>
             <h1 style={{...T.h1,color:P.blue,margin:"0 0 4px 0"}}>Export Package</h1>
-            <p style={{...T.body,color:P.gray5,margin:"0 0 24px 0"}}>Review the processing summary and download all files</p>
-            {/* Summary grid */}
+            <p style={{...T.body,color:P.gray5,margin:"0 0 24px 0"}}>Review processing summary and download all files</p>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:28}}>
               {[
-                {label:"Total Fields Extracted",    val:stats.total,       color:P.blue,   bg:P.blueLight},
-                {label:"Auto-Approved ≥90%",        val:stats.high,        color:P.green,  bg:P.greenLight},
-                {label:"Manually Corrected",        val:audit.filter(e=>e.event==="CORRECTION").length, color:P.warning, bg:P.warningL},
-                {label:"Ratios Calculated",         val:allRatios.length,  color:P.blue,   bg:P.blueLight},
-                {label:"Audit Events Logged",       val:audit.length,      color:P.greenDark,bg:P.greenLight},
-                {label:"Flags Below Benchmark",     val:allRatios.filter(r=>r.flag).length, color:allRatios.filter(r=>r.flag).length>0?P.error:P.green, bg:allRatios.filter(r=>r.flag).length>0?P.errorL:P.greenLight},
+                {label:"Total Fields Extracted",   val:stats.total,                                        color:P.blue,     bg:P.blueLight},
+                {label:"Auto-Approved ≥ 90%",      val:stats.high,                                         color:P.green,    bg:P.greenLight},
+                {label:"Manually Corrected",        val:audit.filter(e=>e.event==="CORRECTION").length,     color:P.warning,  bg:P.warningL},
+                {label:"Ratios Calculated",         val:allRatios.length,                                   color:P.blue,     bg:P.blueLight},
+                {label:"Audit Events Logged",       val:audit.length,                                       color:P.greenDark,bg:P.greenLight},
+                {label:"Flags Below Benchmark",     val:allRatios.filter(r=>r.flag).length,                 color:allRatios.filter(r=>r.flag).length>0?P.error:P.green, bg:allRatios.filter(r=>r.flag).length>0?P.errorL:P.greenLight},
               ].map(c=>(
                 <div key={c.label} style={{background:c.bg,border:`1px solid ${P.gray2}`,borderRadius:8,padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span style={{...T.small,color:P.gray6}}>{c.label}</span>
-                  <span style={{...T.h2,color:c.color,fontSize:22}}>{c.val}</span>
+                  <span style={{fontSize:22,fontWeight:700,color:c.color}}>{c.val}</span>
                 </div>
               ))}
             </div>
-            {/* Download buttons */}
             <h3 style={{...T.h3,color:P.gray6,margin:"0 0 14px 0"}}>Download Files</h3>
             <div style={{display:"flex",flexDirection:"column" as const,gap:10}}>
               {[
-                {icon:"📊",label:"CAM Report (.xlsx)",     sub:"Verified extraction mapped to your Excel template",  accent:P.blue},
-                {icon:"📋",label:"Audit Trail (.json)",    sub:"Machine-readable log — for compliance systems",      accent:P.green},
-                {icon:"📄",label:"Audit Report (.pdf)",    sub:"Human-readable — MAS · OCC · EBA compliant",        accent:P.turquoise},
+                {icon:"📊",label:"CAM Report (.xlsx)",   sub:"Verified extraction mapped to your Excel template", accent:P.blue},
+                {icon:"📋",label:"Audit Trail (.json)",  sub:"Machine-readable log for compliance systems",       accent:P.green},
+                {icon:"📄",label:"Audit Report (.pdf)",  sub:"Human-readable · MAS · OCC · EBA compliant",       accent:P.turquoise},
               ].map(b=>(
                 <button key={b.label} onClick={()=>setExported(true)}
-                  style={{display:"flex",alignItems:"center",gap:14,padding:"14px 18px",borderRadius:8,border:`1px solid ${P.gray2}`,background:P.white,cursor:"pointer",textAlign:"left" as const,boxShadow:"0 1px 3px rgba(0,0,0,0.05)",transition:"box-shadow 0.15s",borderLeft:`4px solid ${b.accent}`}}
+                  style={{display:"flex",alignItems:"center",gap:14,padding:"14px 18px",borderRadius:8,border:`1px solid ${P.gray2}`,background:P.white,cursor:"pointer",textAlign:"left" as const,boxShadow:"0 1px 3px rgba(0,0,0,0.05)",borderLeft:`4px solid ${b.accent}`,transition:"box-shadow 0.15s"}}
                   onMouseEnter={e=>(e.currentTarget as HTMLButtonElement).style.boxShadow="0 3px 10px rgba(0,0,0,0.1)"}
                   onMouseLeave={e=>(e.currentTarget as HTMLButtonElement).style.boxShadow="0 1px 3px rgba(0,0,0,0.05)"}>
                   <span style={{fontSize:24}}>{b.icon}</span>
-                  <div>
+                  <div style={{flex:1}}>
                     <div style={{...T.body,color:P.gray7,fontWeight:600}}>{b.label}</div>
                     <div style={{...T.small,color:P.gray4,marginTop:2}}>{b.sub}</div>
                   </div>
-                  <span style={{marginLeft:"auto",color:P.blue,...T.label}}>↓ Download</span>
+                  <span style={{...T.label,color:P.blue}}>↓ Download</span>
                 </button>
               ))}
             </div>
             {exported&&(
               <div style={{marginTop:16,padding:"12px 16px",background:P.greenLight,border:`1px solid ${P.green}`,borderRadius:8,...T.body,color:P.greenDark,display:"flex",alignItems:"center",gap:8}}>
-                <span>✓</span> Export complete — all files ready. Audit trail sealed.
+                <span style={{fontSize:18}}>✓</span> Export complete — all files ready. Audit trail sealed.
               </div>
             )}
           </div>
-          {/* Right — audit log */}
           <div style={{padding:20,overflowY:"auto" as const,background:P.gray1}}>
             <AuditLog entries={audit}/>
           </div>
