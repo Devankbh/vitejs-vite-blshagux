@@ -14,7 +14,7 @@ interface Field {
   corrected?: boolean;
   isNew?: boolean;
 }
-interface MappingRule { cell: string; fieldId: string; fieldLabel: string; value: string; }
+
 interface AuditEntry { id: string; timestamp: string; event: string; field: string; originalValue?: string; newValue?: string; method?: string; }
 interface Ratio { label: string; formula: string; formulaDetail: string; value: string | number; benchmark: string; flag: boolean; unit: string; }
 
@@ -101,7 +101,7 @@ const fmt = (n: number) => {
 const calcRatios = (fields: Field[]): Ratio[] => {
   const ca = pv("cash",fields)+pv("rec",fields)+pv("inv",fields)+pv("cwip",fields)+pv("dta",fields);
   const cl = pv("std",fields)+pv("ap",fields);
-  const ncl = pv("ltd",fields);
+  const_ncl = pv("ltd",fields);
   const td = pv("std",fields)+pv("ltd",fields);
   const eq = pv("sc",fields)+pv("re",fields);
   const ta = ca+pv("ppe",fields)+pv("intang",fields);
@@ -322,11 +322,9 @@ export default function App() {
   const [pdfPage, setPdfPage] = useState(1);
   const [filter, setFilter] = useState("all");
   const [audit, setAudit] = useState<AuditEntry[]>([]);
-  const [uploaded, setUploaded] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string|null>(null);
   const [exported, setExported] = useState(false);
-  const [expandedRatio, setExpandedRatio] = useState<string|null>(null);
   const [showCustomRatio, setShowCustomRatio] = useState(false);
   const [customRatios, setCustomRatios] = useState<Ratio[]>([]);
   const [crName, setCrName] = useState("");
@@ -375,7 +373,6 @@ export default function App() {
       if(result.error) { setUploadError(result.error); }
       else {
         setFields(result.tree as any);
-        setUploaded(true);
         addAudit({event:"EXTRACTION_COMPLETE",field:file.name,newValue:`${result.tree.length} sections extracted`});
       }
     } catch(err) { setUploadError(String(err)); }
