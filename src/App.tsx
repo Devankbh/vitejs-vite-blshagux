@@ -101,7 +101,6 @@ const fmt = (n: number) => {
 const calcRatios = (fields: Field[]): Ratio[] => {
   const ca = pv("cash",fields)+pv("rec",fields)+pv("inv",fields)+pv("cwip",fields)+pv("dta",fields);
   const cl = pv("std",fields)+pv("ap",fields);
-  const_ncl = pv("ltd",fields);
   const td = pv("std",fields)+pv("ltd",fields);
   const eq = pv("sc",fields)+pv("re",fields);
   const ta = ca+pv("ppe",fields)+pv("intang",fields);
